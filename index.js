@@ -8,7 +8,12 @@ const app = express();
 const port = process.env.PORT || 5000;
 
 // Middleware
-app.use(cors());
+app.use(cors({
+  origin: ['http://localhost:3000', 'http://localhost:5173', 'https://url-shortener-website.netlify.app'],
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+}));
+
 app.use(express.json());
 
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.fus4ier.mongodb.net/?appName=Cluster0`;
@@ -24,7 +29,6 @@ const client = new MongoClient(uri, {
 
 async function run() {
   try {
-    // Connect the client to the server
     await client.connect();
     const database = client.db("urlManagementDB");
     const longUrlCollection = database.collection("urlCollection");
@@ -36,22 +40,20 @@ async function run() {
         require_protocol: true,
         require_tld: true,
         require_host: true,
-        allow_underscores: false,
         disallow_auth: true,
-        validate_length: true,
       });
-      
+
       if (!isValidUrl) {
-        return res.status(400).json({ error: 'Invalid URL' });
+        return res.status(400).json({ error: 'Invalid URL!' });
       }
 
       const shortUrl = shortid.generate();
       const urlData = { originalUrl, shortUrl };
       const result = await longUrlCollection.insertOne(urlData);
+      console.log('Inserted URL Data:', result);
       res.json({ shortUrl });
     });
 
-    // Endpoint to redirect to the original URL
     app.get('/:shortUrl', async (req, res) => {
       const { shortUrl } = req.params;
       const urlData = await longUrlCollection.findOne({ shortUrl });
@@ -62,7 +64,6 @@ async function run() {
       }
     });
 
-    // Ping to confirm a successful connection
     await client.db("admin").command({ ping: 1 });
     console.log("Pinged your deployment. You successfully connected to MongoDB!");
   } finally {
@@ -72,10 +73,10 @@ async function run() {
 }
 run().catch(console.dir);
 
-app.get('/',(req,res)=> {
-  res.send('url shortener running')
-})
+app.get('/', (req, res) => {
+  res.send('URL shortener is running');
+});
 
 app.listen(port, () => {
-  console.log(`Server is running on Port: ${port}`)
+  console.log(`Server is running on Port: ${port}`);
 });
